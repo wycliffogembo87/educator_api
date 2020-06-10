@@ -63,7 +63,7 @@ CREATE TABLE public.notification (
 
 CREATE TABLE public.question (
     id uuid NOT NULL,
-    number integer NOT NULL,
+    number integer,
     text text NOT NULL,
     multi_choice text[] NOT NULL,
     marks integer NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE public.schema_migrations (
 CREATE TABLE public.submission (
     id uuid NOT NULL,
     answer text NOT NULL,
-    mark text NOT NULL,
+    mark character varying(30) NOT NULL,
     marks_obtained integer,
     comment text NOT NULL,
     metadata jsonb NOT NULL,
@@ -114,8 +114,8 @@ CREATE TABLE public."user" (
     phone_number_verified boolean NOT NULL,
     email text NOT NULL,
     email_verified boolean NOT NULL,
-    role text NOT NULL,
-    status text NOT NULL,
+    role character varying(30) NOT NULL,
+    status character varying(30) NOT NULL,
     level integer NOT NULL,
     metadata jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
@@ -169,6 +169,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 ALTER TABLE ONLY public.submission
     ADD CONSTRAINT submission_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: question unq_question__exam_number; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.question
+    ADD CONSTRAINT unq_question__exam_number UNIQUE (exam, number);
 
 
 --
@@ -279,13 +287,6 @@ CREATE INDEX idx_notification__user ON public.notification USING btree ("user");
 --
 
 CREATE INDEX idx_question__created_at ON public.question USING btree (created_at);
-
-
---
--- Name: idx_question__exam; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_question__exam ON public.question USING btree (exam);
 
 
 --

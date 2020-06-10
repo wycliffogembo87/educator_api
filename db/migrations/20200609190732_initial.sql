@@ -25,8 +25,8 @@ CREATE TABLE "user" (
   "phone_number_verified" BOOLEAN NOT NULL,
   "email" TEXT UNIQUE NOT NULL,
   "email_verified" BOOLEAN NOT NULL,
-  "role" TEXT NOT NULL,
-  "status" TEXT NOT NULL,
+  "role" VARCHAR(30) NOT NULL,
+  "status" VARCHAR(30) NOT NULL,
   "level" INTEGER NOT NULL,
   "metadata" JSONB NOT NULL,
   "created_at" TIMESTAMP NOT NULL,
@@ -71,7 +71,7 @@ ALTER TABLE "notification" ADD CONSTRAINT "fk_notification__user" FOREIGN KEY ("
 
 CREATE TABLE "question" (
   "id" UUID PRIMARY KEY,
-  "number" INTEGER NOT NULL,
+  "number" INTEGER,
   "text" TEXT NOT NULL,
   "multi_choice" TEXT[] NOT NULL,
   "marks" INTEGER NOT NULL,
@@ -79,12 +79,11 @@ CREATE TABLE "question" (
   "metadata" JSONB NOT NULL,
   "created_at" TIMESTAMP NOT NULL,
   "updated_at" TIMESTAMP NOT NULL,
-  "exam" UUID NOT NULL
+  "exam" UUID NOT NULL,
+  CONSTRAINT "unq_question__exam_number" UNIQUE ("exam", "number")
 );
 
 CREATE INDEX "idx_question__created_at" ON "question" ("created_at");
-
-CREATE INDEX "idx_question__exam" ON "question" ("exam");
 
 CREATE INDEX "idx_question__number" ON "question" ("number");
 
@@ -93,7 +92,7 @@ ALTER TABLE "question" ADD CONSTRAINT "fk_question__exam" FOREIGN KEY ("exam") R
 CREATE TABLE "submission" (
   "id" UUID PRIMARY KEY,
   "answer" TEXT NOT NULL,
-  "mark" TEXT NOT NULL,
+  "mark" VARCHAR(30) NOT NULL,
   "marks_obtained" INTEGER,
   "comment" TEXT NOT NULL,
   "metadata" JSONB NOT NULL,

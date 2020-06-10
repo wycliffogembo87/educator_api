@@ -1,7 +1,14 @@
 import os
 import errno
+import traceback
+
+from fastapi import status
+from fastapi import HTTPException
 
 from loguru import logger
+from functools import wraps
+
+from pony.orm.core import TransactionIntegrityError
 
 
 def mkdir_p(path):
@@ -32,3 +39,37 @@ def logger_setup():
         backtrace=True,
         diagnose=True
     )
+
+
+def decorator(func):
+    @wraps(func)
+    def function_wrapper(*args, **kwargs):
+        """ function_wrapper of greeting """
+        print("Before, " + func.__name__ + " returns:")
+        response = func(*args, **kwargs)
+        print("After, " + func.__name__ + " returns:")
+        return response
+    return function_wrapper
+
+
+def global_exception_handler(func):
+    @wraps(func)
+    def function_wrapper(*args, **kwargs):
+        try:
+            response = func(*args, **kwargs)
+        except HTTPException:
+            raise
+        except TransactionIntegrityError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=("This record cannot be submitted more than once")
+            )
+        except Exception as err:
+            print(traceback.format_exc())
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(err)
+            )
+        
+        return response
+    return function_wrapper

@@ -35,22 +35,25 @@ class Role(Enum):
 
 class Mark(Enum):
     correct = 0
-    wrong = 0
+    wrong = 1
+    unmarked = 2
 
 class EnumConverter(StrConverter):
-
-    def validate(self, val):
+    def validate(self, val, obj=None):
         if not isinstance(val, Enum):
-            raise ValueError('Must be an Enum.  Got {}'.format(type(val)))
+            raise ValueError('Must be an Enum. Got {}'.format(val))
         return val
 
     def py2sql(self, val):
         return val.name
 
-    def sql2py(self, value):
+    def sql2py(self, val):
         # Any enum type can be used, so py_type ensures the
         # correct one is used to create the enum instance
-        return self.py_type[value]
+        return self.py_type[val]
+
+    def sql_type(self):
+        return 'VARCHAR(30)'
 
 
 db = Database()
@@ -81,8 +84,8 @@ class User(db.Entity):
     phone_number_verified = Required(bool, default=False)
     email = Required(str, unique=True)
     email_verified = Required(bool, default=False)
-    role = Required(Role)
-    status = Required(Status)
+    role = Required(Role, default=Role.learner)
+    status = Required(Status, default=Status.active)
     level = Required(int, default=1)
     metadata = Required(Json, default={})
     created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
@@ -105,7 +108,7 @@ class Exam(db.Entity):
 
 class Question(db.Entity):
     id = PrimaryKey(UUID, default=uuid4, auto=True)
-    number = Required(int, index=True)
+    number = Optional(int, index=True)
     text = Required(str)
     multi_choice = Optional(StrArray)
     marks = Required(int)
@@ -115,12 +118,13 @@ class Question(db.Entity):
     updated_at = Required(dt, default=lambda: dt.utcnow())
     exam = Required(Exam)
     submissions = Set('Submission')
+    composite_key(exam, number)
 
 class Submission(db.Entity):
     id = PrimaryKey(UUID, default=uuid4, auto=True)
     answer = Required(str)
-    mark = Required(Mark)
-    marks_obtained = Optional(int)
+    mark = Required(Mark, default=Mark.unmarked)
+    marks_obtained = Optional(int, default=-1)
     comment = Optional(str)
     metadata = Required(Json, default={})
     created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
@@ -148,7 +152,7 @@ class Notification(db.Entity):
     user = Required(User)
 
 
-# db.generate_mapping(create_tables=True)
+db.generate_mapping(create_tables=True)
 
 
 if __name__ == '__main__':

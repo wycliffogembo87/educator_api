@@ -5,23 +5,24 @@ class Question(BaseModel):
     number : int
     question : str
     multichoice : List[str] = None # If None then free_text
+    marks : int
     answer : str
 
-class CreateQuiz(BaseModel):
-    quiz_id : str
+class CreateExam(BaseModel):
+    exam_id : str
     name : str
     questions : List[Question]
     video_tutorial_name : str = None
     tutor_id : str
 
-class FilledAnswer(BaseModel):
+class Submission(BaseModel):
     learner_id : str
     question_number : int
     answer : str
 
-class FilledAnswers(BaseModel):
-    quiz_id : str
-    answers : List[FilledAnswer]
+class Submissions(BaseModel):
+    exam_id : str
+    answers : List[Submission]
 
 class Notification(BaseModel):
     learner_id : str

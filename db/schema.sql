@@ -66,6 +66,7 @@ CREATE TABLE public.question (
     number integer NOT NULL,
     text text NOT NULL,
     multi_choice text[] NOT NULL,
+    marks integer NOT NULL,
     answer text NOT NULL,
     metadata jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
@@ -80,6 +81,24 @@ CREATE TABLE public.question (
 
 CREATE TABLE public.schema_migrations (
     version character varying(255) NOT NULL
+);
+
+
+--
+-- Name: submission; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.submission (
+    id uuid NOT NULL,
+    answer text NOT NULL,
+    mark text NOT NULL,
+    marks_obtained integer,
+    comment text NOT NULL,
+    metadata jsonb NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    question uuid NOT NULL,
+    "user" uuid NOT NULL
 );
 
 
@@ -142,6 +161,22 @@ ALTER TABLE ONLY public.question
 
 ALTER TABLE ONLY public.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: submission submission_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.submission
+    ADD CONSTRAINT submission_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: submission unq_submission__user_question; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.submission
+    ADD CONSTRAINT unq_submission__user_question UNIQUE ("user", question);
 
 
 --
@@ -261,6 +296,20 @@ CREATE INDEX idx_question__number ON public.question USING btree (number);
 
 
 --
+-- Name: idx_submission__created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_submission__created_at ON public.submission USING btree (created_at);
+
+
+--
+-- Name: idx_submission__question; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_submission__question ON public.submission USING btree (question);
+
+
+--
 -- Name: idx_user__created_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -289,6 +338,22 @@ ALTER TABLE ONLY public.notification
 
 ALTER TABLE ONLY public.question
     ADD CONSTRAINT fk_question__exam FOREIGN KEY (exam) REFERENCES public.exam(id) ON DELETE CASCADE;
+
+
+--
+-- Name: submission fk_submission__question; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.submission
+    ADD CONSTRAINT fk_submission__question FOREIGN KEY (question) REFERENCES public.question(id) ON DELETE CASCADE;
+
+
+--
+-- Name: submission fk_submission__user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.submission
+    ADD CONSTRAINT fk_submission__user FOREIGN KEY ("user") REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --

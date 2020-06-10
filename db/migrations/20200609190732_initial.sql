@@ -74,6 +74,7 @@ CREATE TABLE "question" (
   "number" INTEGER NOT NULL,
   "text" TEXT NOT NULL,
   "multi_choice" TEXT[] NOT NULL,
+  "marks" INTEGER NOT NULL,
   "answer" TEXT NOT NULL,
   "metadata" JSONB NOT NULL,
   "created_at" TIMESTAMP NOT NULL,
@@ -89,8 +90,31 @@ CREATE INDEX "idx_question__number" ON "question" ("number");
 
 ALTER TABLE "question" ADD CONSTRAINT "fk_question__exam" FOREIGN KEY ("exam") REFERENCES "exam" ("id") ON DELETE CASCADE;
 
+CREATE TABLE "submission" (
+  "id" UUID PRIMARY KEY,
+  "answer" TEXT NOT NULL,
+  "mark" TEXT NOT NULL,
+  "marks_obtained" INTEGER,
+  "comment" TEXT NOT NULL,
+  "metadata" JSONB NOT NULL,
+  "created_at" TIMESTAMP NOT NULL,
+  "updated_at" TIMESTAMP NOT NULL,
+  "question" UUID NOT NULL,
+  "user" UUID NOT NULL,
+  CONSTRAINT "unq_submission__user_question" UNIQUE ("user", "question")
+);
+
+CREATE INDEX "idx_submission__created_at" ON "submission" ("created_at");
+
+CREATE INDEX "idx_submission__question" ON "submission" ("question");
+
+ALTER TABLE "submission" ADD CONSTRAINT "fk_submission__question" FOREIGN KEY ("question") REFERENCES "question" ("id") ON DELETE CASCADE;
+
+ALTER TABLE "submission" ADD CONSTRAINT "fk_submission__user" FOREIGN KEY ("user") REFERENCES "user" ("id") ON DELETE CASCADE;
+
 -- migrate:down
 
+DROP TABLE "submission";
 DROP TABLE "question";
 DROP TABLE "exam";
 DROP TABLE "mentorship";

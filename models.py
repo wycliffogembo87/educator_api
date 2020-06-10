@@ -15,6 +15,7 @@ from pony.orm import PrimaryKey
 from pony.orm import Json
 from pony.orm import Set
 from pony.orm import StrArray
+from pony.orm import composite_key
 from pony.orm import set_sql_debug
 from pony.orm.dbapiprovider import StrConverter
 
@@ -31,6 +32,10 @@ class Role(Enum):
     learner = 1
     staff = 2
     admin = 3
+
+class Mark(Enum):
+    correct = 0
+    wrong = 0
 
 class EnumConverter(StrConverter):
 
@@ -84,6 +89,7 @@ class User(db.Entity):
     updated_at = Required(dt, default=lambda: dt.utcnow())
     notifications = Set('Notification')
     exams = Set('Exam')
+    submissions = Set('Submission')
 
 
 class Exam(db.Entity):
@@ -102,11 +108,26 @@ class Question(db.Entity):
     number = Required(int, index=True)
     text = Required(str)
     multi_choice = Optional(StrArray)
+    marks = Required(int)
     answer = Optional(str)
     metadata = Required(Json, default={})
     created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
     updated_at = Required(dt, default=lambda: dt.utcnow())
-    Exam = Required(Exam)
+    exam = Required(Exam)
+    submissions = Set('Submission')
+
+class Submission(db.Entity):
+    id = PrimaryKey(UUID, default=uuid4, auto=True)
+    answer = Required(str)
+    mark = Required(Mark)
+    marks_obtained = Optional(int)
+    comment = Optional(str)
+    metadata = Required(Json, default={})
+    created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
+    updated_at = Required(dt, default=lambda: dt.utcnow())
+    question = Required(Question)
+    user = Required(User)
+    composite_key(user, question)
 
 class Mentorship(db.Entity):
     id = PrimaryKey(UUID, default=uuid4, auto=True)

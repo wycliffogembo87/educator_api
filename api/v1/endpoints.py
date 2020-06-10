@@ -6,8 +6,8 @@ from fastapi import Form
 from fastapi import UploadFile
 from fastapi.responses import StreamingResponse
 
-from schema import CreateQuiz
-from schema import FilledAnswers
+from schema import CreateExam
+from schema import Submissions
 from schema import Notification
 from schema import Mentorship
 
@@ -55,18 +55,18 @@ def upload_video_tutorial(
         "fileb_content_type": fileb.content_type,
     }
 
-@router.post("/quiz", response_model=CreateQuiz, tags=["quiz"], status_code=201)
-def create_quiz(quiz: CreateQuiz):
+@router.post("/exam", response_model=CreateExam, tags=["exam"], status_code=201)
+def create_exam(exam: CreateExam):
     """
-    Demostrate creating a new quiz.
+    Demostrate creating a new exam.
     This data will be stored in relational database.
     """
-    return quiz
+    return exam
 
-@router.post("/quiz/filled", tags=["quiz"], status_code=201)
-def process_filled_quiz(filled_answers: FilledAnswers):
+@router.post("/submission", tags=["exam"], status_code=201)
+def process_submission(submissions: Submissions):
     """
-    1. Fetch quiz from database
+    1. Fetch exam from database
     2. Compare filled answers to tutors answers
        and use that to grade the learner.
     """

@@ -50,13 +50,13 @@ CREATE TABLE public.grade (
 
 CREATE TABLE public.mentorship (
     id uuid NOT NULL,
-    learner text NOT NULL,
-    tutor text NOT NULL,
+    tutor uuid NOT NULL,
     challenge_being_faced text NOT NULL,
     is_active boolean NOT NULL,
     metadata jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
+    updated_at timestamp without time zone NOT NULL,
+    "user" uuid NOT NULL
 );
 
 
@@ -79,16 +79,12 @@ CREATE TABLE public.notification (
 
 CREATE TABLE public.performance (
     id uuid NOT NULL,
-    tick_count integer NOT NULL,
-    tick_total_marks integer NOT NULL,
-    cross_count integer NOT NULL,
-    cross_total_marks integer NOT NULL,
-    auto_tick_count integer NOT NULL,
-    auto_tick_total_marks integer NOT NULL,
-    auto_cross_count integer NOT NULL,
-    auto_cross_total_marks integer NOT NULL,
-    total_number_of_questions integer NOT NULL,
+    ticks integer NOT NULL,
+    crosses integer NOT NULL,
+    unmarked integer NOT NULL,
+    marks_obtained integer NOT NULL,
     total_marks integer NOT NULL,
+    total_number_of_questions integer NOT NULL,
     percentage integer NOT NULL,
     metadata jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
@@ -352,17 +348,17 @@ CREATE INDEX idx_mentorship__created_at ON public.mentorship USING btree (create
 
 
 --
--- Name: idx_mentorship__learner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_mentorship__learner ON public.mentorship USING btree (learner);
-
-
---
 -- Name: idx_mentorship__tutor; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_mentorship__tutor ON public.mentorship USING btree (tutor);
+
+
+--
+-- Name: idx_mentorship__user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mentorship__user ON public.mentorship USING btree ("user");
 
 
 --
@@ -441,6 +437,14 @@ CREATE INDEX idx_user__created_at ON public."user" USING btree (created_at);
 
 ALTER TABLE ONLY public.exam
     ADD CONSTRAINT fk_exam__user FOREIGN KEY ("user") REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: mentorship fk_mentorship__user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mentorship
+    ADD CONSTRAINT fk_mentorship__user FOREIGN KEY ("user") REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --

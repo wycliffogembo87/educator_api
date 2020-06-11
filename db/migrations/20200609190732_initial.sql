@@ -13,23 +13,6 @@ CREATE TABLE "grade" (
 
 CREATE INDEX "idx_grade__created_at" ON "grade" ("created_at");
 
-CREATE TABLE "mentorship" (
-  "id" UUID PRIMARY KEY,
-  "learner" TEXT NOT NULL,
-  "tutor" TEXT NOT NULL,
-  "challenge_being_faced" TEXT NOT NULL,
-  "is_active" BOOLEAN NOT NULL,
-  "metadata" JSONB NOT NULL,
-  "created_at" TIMESTAMP NOT NULL,
-  "updated_at" TIMESTAMP NOT NULL
-);
-
-CREATE INDEX "idx_mentorship__created_at" ON "mentorship" ("created_at");
-
-CREATE INDEX "idx_mentorship__learner" ON "mentorship" ("learner");
-
-CREATE INDEX "idx_mentorship__tutor" ON "mentorship" ("tutor");
-
 CREATE TABLE "user" (
   "id" UUID PRIMARY KEY,
   "username" TEXT UNIQUE NOT NULL,
@@ -68,6 +51,25 @@ CREATE INDEX "idx_exam__video_tutorial_name" ON "exam" ("video_tutorial_name");
 
 ALTER TABLE "exam" ADD CONSTRAINT "fk_exam__user" FOREIGN KEY ("user") REFERENCES "user" ("id") ON DELETE CASCADE;
 
+CREATE TABLE "mentorship" (
+  "id" UUID PRIMARY KEY,
+  "tutor" UUID NOT NULL,
+  "challenge_being_faced" TEXT NOT NULL,
+  "is_active" BOOLEAN NOT NULL,
+  "metadata" JSONB NOT NULL,
+  "created_at" TIMESTAMP NOT NULL,
+  "updated_at" TIMESTAMP NOT NULL,
+  "user" UUID NOT NULL
+);
+
+CREATE INDEX "idx_mentorship__created_at" ON "mentorship" ("created_at");
+
+CREATE INDEX "idx_mentorship__tutor" ON "mentorship" ("tutor");
+
+CREATE INDEX "idx_mentorship__user" ON "mentorship" ("user");
+
+ALTER TABLE "mentorship" ADD CONSTRAINT "fk_mentorship__user" FOREIGN KEY ("user") REFERENCES "user" ("id") ON DELETE CASCADE;
+
 CREATE TABLE "notification" (
   "id" UUID PRIMARY KEY,
   "metadata" JSONB NOT NULL,
@@ -84,16 +86,12 @@ ALTER TABLE "notification" ADD CONSTRAINT "fk_notification__user" FOREIGN KEY ("
 
 CREATE TABLE "performance" (
   "id" UUID PRIMARY KEY,
-  "tick_count" INTEGER NOT NULL,
-  "tick_total_marks" INTEGER NOT NULL,
-  "cross_count" INTEGER NOT NULL,
-  "cross_total_marks" INTEGER NOT NULL,
-  "auto_tick_count" INTEGER NOT NULL,
-  "auto_tick_total_marks" INTEGER NOT NULL,
-  "auto_cross_count" INTEGER NOT NULL,
-  "auto_cross_total_marks" INTEGER NOT NULL,
-  "total_number_of_questions" INTEGER NOT NULL,
+  "ticks" INTEGER NOT NULL,
+  "crosses" INTEGER NOT NULL,
+  "unmarked" INTEGER NOT NULL,
+  "marks_obtained" INTEGER NOT NULL,
   "total_marks" INTEGER NOT NULL,
+  "total_number_of_questions" INTEGER NOT NULL,
   "percentage" INTEGER NOT NULL,
   "metadata" JSONB NOT NULL,
   "created_at" TIMESTAMP NOT NULL,

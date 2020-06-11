@@ -1,3 +1,5 @@
+import requests
+
 from fastapi import Depends
 from fastapi import status
 from fastapi import HTTPException
@@ -6,6 +8,7 @@ from fastapi.security import HTTPBasic
 from fastapi.security import HTTPBasicCredentials
 
 from passlib.context import CryptContext
+from typing import List
 
 from pony.orm import *
 
@@ -17,12 +20,15 @@ from models import Question
 from models import Submission
 from models import Grade
 from models import Performance
+from models import Notification
+from models import Mentorship
 from models import Status
 from models import Role
 from models import Mark
 
 import models
 import schemas
+import settings
 
 security = HTTPBasic()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -31,7 +37,9 @@ roles = dict(
     create_exam=[Role.tutor],
     create_question=[Role.tutor],
     create_submission=[Role.learner],
-    mark_submission=[Role.tutor]
+    mark_submission=[Role.tutor],
+    notify_user=[Role.tutor],
+    request_form_mentorship=[Role.learner]
 )
 
 def verify_password(plain_password: str, hashed_password: str):
@@ -40,10 +48,10 @@ def verify_password(plain_password: str, hashed_password: str):
 def get_password_hash(password: str):
     return pwd_context.hash(password)
 
-def is_authorized(user: models.User, action: str):
-    print("Action : {}, Role : {}".format(action, user.role))
+def is_authorized(user_role: Role, action: str):
+    print("Action : {}, Role : {}".format(action, user_role))
     print(dir(Role))
-    if user.role not in roles[action]:
+    if user_role not in roles[action]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only {} can {}".format(roles[action], action)
@@ -124,35 +132,47 @@ def create_question(user: models.User, question: schemas.Question):
 
 
 @db_session
-def mark_submission(user: models.User, submission: schemas.Submission):
-    is_authorized(user, "mark_submission")
+def mark_submission(user_id: UUID, user_role: Role, submission: schemas.Submission):
+    is_authorized(user_role, "mark_submission")
 
     mark = Mark.tick if submission.mark == "tick" else Mark.cross
+    marks_to_award = submission.marks
+    submission_id = submission.submission_id
 
-    submission = Submission.get(id=submission.submission_id)
+    submission = Submission.get(id=submission_id)
+
     if not submission:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
                 "Submission not found : submission_id: {}".format(
-                    submission.submission_id
+                    submission_id
                 )
             )
         )
     
-    if submission.mark == Mark.unmarked:
+    if True: #submission.mark == Mark.unmarked:
         submission.mark = mark
-    submission.marks_obtained = (
-        submission.question.marks
-        if mark == Mark.tick else 0
-    )
+        if marks_to_award:
+            submission.marks_obtained = marks_to_award
+        else:
+            submission.marks_obtained = (
+                submission.question.marks
+                if mark == Mark.tick else 0
+            )
 
-    performance = performance_review(User[user.id], submission)
+        performance_review(submission)
 
-    print(performance.to_dict())
-    print(submission.to_dict())
-
-    return submission
+        return submission
+    
+    raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Submission already auto marked : submission_id: {}".format(
+                    submission_id
+                )
+            )
+        )
 
 @db_session
 def create_submission(user: models.User, submission: schemas.Submission):
@@ -177,106 +197,61 @@ def create_submission(user: models.User, submission: schemas.Submission):
         user=learner,
         marks_obtained=(
             question.marks
-            if submission.answer == question.answer
-            else 0
+            if len(question.multi_choice) > 0 and submission.answer == question.answer
+            else
+            0
         ),
         mark=(
             Mark.auto_tick
-            if question.multi_choice
-            and len(question.multi_choice) > 0
-            and submission.answer == question.answer
+            if len(question.multi_choice) > 0 and submission.answer == question.answer
             else
             Mark.auto_cross
         )
     )
 
-    performance = performance_review(learner, submission)
+    performance = performance_review(submission)
 
     print(performance.to_dict())
     print(submission.to_dict())
 
     return submission
 
-def performance_review(learner : models.User, submission : models.Submission):
+def performance_review(submission : models.Submission):
     exam = submission.question.exam
 
-    auto_passed_questions = select(
-        q
-        for q in Question
-        if q.multi_choice
-        and len(q.multi_choice) > 0
-        and q.answer
-        and len(q.answer) > 0
-        and submission.answer == q.answer
-        and q.exam == exam
-        and 
-    )[:]
-    print(auto_passed_questions)
-
-    auto_failed_questions = select(
-        q
-        for q in Question
-        if q.multi_choice
-        and len(q.multi_choice) > 0
-        and q.answer
-        and len(q.answer) > 0
-        and submission.answer != q.answer
-        and q.exam == exam
-    )[:]
-    print(auto_failed_questions)
-
-    passed_questions = select(
-        q
-        for q in submission.question:
-        if q.mark == Mark.tick
-        and q.exam == exam
-    )[:]
-    print(passed_questions)
-
-    failed_questions = select(
-        q
-        for q in Question
-        if q.mark == Mark.cross
-        and q.exam == exam
-    )[:]
-    print(failed_questions)
-
-    stats = select(
+    exam_stats = select(
         (sum(q.marks), count())
         for q in Question
         if q.exam == exam
     )[:][0]
-    print(stats)
-    total_marks, total_number_of_questions = stats
+    print(exam_stats)
+    total_marks, total_number_of_questions = exam_stats
 
-    auto_tick_count = 0
-    auto_tick_total_marks = 0
-    auto_cross_count = 0
-    auto_cross_total_marks = 0
+    learner_submissions = select(
+        s
+        for s in Submission
+        if s.question.exam == exam
+        and s.user == submission.user
+    )[:]
+    print(learner_submissions)
 
-    for q in auto_passed_questions:
-        auto_tick_count += 1
-        auto_tick_total_marks += q.marks
+    ticks = 0
+    crosses = 0
+    unmarked = 0
+    marks_obtained = 0
     
-    for q in auto_failed_questions:
-        auto_cross_count += 1
-        auto_cross_total_marks += q.marks
-
-    tick_count = 0
-    tick_total_marks = 0
-    cross_count = 0
-    cross_total_marks = 0
+    for s in learner_submissions:
+        if s.mark == Mark.tick or s.mark == Mark.auto_tick:
+            ticks += 1
+            marks_obtained += s.marks_obtained
+        elif s.mark == Mark.cross or s.mark == Mark.auto_cross:
+            crosses += 1
+        elif s.mark == Mark.unmarked:
+            unmarked += 1
+        else:
+            pass
     
-    for q in passed_questions:
-        tick_count += 1
-        tick_total_marks += q.marks
-    
-    for q in failed_questions:
-        cross_count += 1
-        cross_total_marks += q.marks
-    
-    percentage = auto_tick_total_marks / total_marks * 100
-
+    percentage = int(marks_obtained / total_marks * 100)
     grade = Grade.get(
         lambda g:
         percentage >= g.starting_percentage
@@ -284,41 +259,102 @@ def performance_review(learner : models.User, submission : models.Submission):
     )
     print(grade)
 
-    performance = Performance.get(user=learner, exam=exam)
+    performance = Performance.get(user=submission.user, exam=exam)
 
     if not performance:
         performance_data = dict(
-            tick_count=tick_count,
-            tick_total_marks=tick_total_marks,
-            cross_count=cross_count,
-            cross_total_marks=cross_total_marks,
-            auto_tick_count=auto_tick_count,
-            auto_tick_total_marks=auto_tick_total_marks,
-            auto_cross_count=auto_cross_count,
-            auto_cross_total_marks=auto_cross_total_marks,
-            total_number_of_questions=total_number_of_questions,
+            ticks=ticks,
+            crosses=crosses,
+            unmarked=unmarked,
+            marks_obtained=marks_obtained,
             total_marks=total_marks,
-            percentage=int(percentage),
+            total_number_of_questions=total_number_of_questions,
+            percentage=percentage,
             grade=grade,
             exam=exam,
-            user=learner
+            user=submission.user
         )
         performance = Performance(**performance_data)
     else:
-        performance.tick_count = 0
-        performance.tick_count = 0
-        performance.tick_total_marks = 0
-        performance.cross_count = 0
-        performance.cross_total_marks = 0
-        performance.auto_tick_count = auto_tick_count
-        performance.auto_tick_total_marks = auto_tick_total_marks
-        performance.auto_cross_count = auto_cross_count
-        performance.auto_cross_total_marks = auto_cross_total_marks
-        performance.total_number_of_questions = total_number_of_questions
+        performance.ticks = ticks
+        performance.crosses = crosses
+        performance.unmarked = unmarked
+        performance.marks_obtained = marks_obtained
         performance.total_marks = total_marks
+        performance.percentage = percentage
         performance.grade = grade
     
     return performance
+
+@db_session
+def notify_user(user_role: Role, user_id: str, message: str):
+    is_authorized(user_role, "notify_user")
+    
+    user = User.get(id=user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "User not found : user_id: {}".format(
+                    user_id
+                )
+            )
+        )
+    return send_sms(user, [user.phone_number], message)
+
+def send_sms(user: models.User, recipients: List[str], message: str):
+
+    api_key = str(settings.AFRICASTALKING_API_KEY)
+    api_username = str(settings.AFRICASTALKING_API_USERNAME)
+
+    data = {
+        'username': api_username,
+        'to': ','.join(recipients),
+        'message': message,
+        # 'from': str(settings.AFRICASTALKING_API_SENDER_ID)
+    }
+    headers = {
+        'apiKey': api_key,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+    }
+
+    # logger.debug('SMS send request : {}'.format(data))
+
+    response = requests.post(
+        settings.AFRICASTALKING_API_URL, data=data,
+        headers=headers
+    )
+
+    try:
+        response = response.json()
+    except Exception as error:
+        print(error)
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=response.text
+        )
+    else:
+        sms_message_data = response['SMSMessageData']
+        notification = Notification(user=user, metadata=sms_message_data)
+        print(notification)
+    
+    return response
+
+@db_session
+def request_for_mentorship(user_id: str, user_role: Role, mentorship: schemas.Mentorship):
+    is_authorized(user_role, "request_form_mentorship")
+
+    tutor_id = mentorship.tutor_id
+    challenge_being_faced = mentorship.challenge_being_faced
+
+    mentorship = Mentorship(
+        user = User[user_id],
+        tutor=UUID(tutor_id),
+        challenge_being_faced=challenge_being_faced
+    )
+
+    return mentorship
 
 @db_session
 def populate_grades():

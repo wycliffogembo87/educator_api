@@ -96,6 +96,8 @@ class User(db.Entity):
     exams = Set('Exam')
     submissions = Set('Submission')
     performances = Set('Performance')
+    notifications = Set('Notification')
+    mentorships = Set('Mentorship')
 
 
 class Exam(db.Entity):
@@ -139,13 +141,13 @@ class Submission(db.Entity):
 
 class Mentorship(db.Entity):
     id = PrimaryKey(UUID, default=uuid4, auto=True)
-    learner = Required(str, index=True)
-    tutor = Required(str, index=True)
+    tutor = Required(UUID, index=True)
     challenge_being_faced = Required(str)
     is_active = Required(bool, default=True)
     metadata = Required(Json, default={})
     created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
     updated_at = Required(dt, default=lambda: dt.utcnow())
+    user = Required(User)
 
 
 class Notification(db.Entity):
@@ -170,16 +172,12 @@ class Grade(db.Entity):
 
 class Performance(db.Entity):
     id = PrimaryKey(UUID, default=uuid4, auto=True)
-    tick_count = Required(int)
-    tick_total_marks = Required(int)
-    cross_count = Required(int)
-    cross_total_marks = Required(int)
-    auto_tick_count = Required(int)
-    auto_tick_total_marks = Required(int)
-    auto_cross_count = Required(int)
-    auto_cross_total_marks = Required(int)
-    total_number_of_questions = Required(int)
+    ticks = Required(int)
+    crosses = Required(int)
+    unmarked = Required(int)
+    marks_obtained = Required(int)
     total_marks = Required(int)
+    total_number_of_questions = Required(int)
     percentage = Required(int)
     metadata = Required(Json, default={})
     created_at = Required(dt, default=lambda: dt.utcnow(), index=True)

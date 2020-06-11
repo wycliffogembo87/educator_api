@@ -108,7 +108,7 @@ def create_exam(
     """
     Demostrate creating a new exam.
     """
-    return core.create_exam(user, exam)
+    return core.create_exam(user.id, user.role, exam)
 
 @router.post("/exam/question", response_model=schemas.QuestionOut, tags=["exam"], status_code=201)
 @util.global_exception_handler
@@ -119,7 +119,7 @@ def create_question(
     """
     Demostrate creating a new question for a particular exam.
     """
-    return core.create_question(user, question)
+    return core.create_question(user.id, user.role, question)
 
 @router.post("/exam/submission", response_model=schemas.SubmissionOut, tags=["exam"], status_code=201)
 @util.global_exception_handler
@@ -132,7 +132,7 @@ def create_submission(
     2. Compare submitted answers to tutors answers
        and use that to grade the learner.
     """
-    return core.create_submission(user, submission)
+    return core.create_submission(user.id, user.role, submission)
 
 @router.post("/exam/submission/mark", response_model=schemas.SubmissionOut, tags=["exam"], status_code=201)
 @util.global_exception_handler
@@ -145,48 +145,32 @@ def mark_submission(
     2. Compare submitted answers to tutors answers
        and use that to grade the learner.
     """
-    return core.mark_submission(user, submission)
+    return core.mark_submission(user.id, user.role, submission)
 
 @router.post("/notification", tags=["notification"], status_code=201)
 @util.global_exception_handler
-def notify_users(notification : schemas.Notification):
+def notify_user(
+    notification : schemas.Notification,
+    user : models.User = Depends(core.authenticate_user)
+):
     """
     1. Payload has learner id, channel_type and message
     2. Channel type can be email or sms or any other.
     3. This endpoint only fetches learner info like phone number and
        sends them the message contained in the payload.
     """
-    learner_id = notification.learner_id
-    profile = get_learner_profile(learner_id)
-    if notification.channel == "sms":
-        send_sms(profile['phone_number'], notification.message)
-    else:
-        send_email(profile['email'], notification.message)
-    return {"status": "success"}
+    return core.notify_user(
+        user.role, notification.user_id, notification.message
+    )
 
-@router.post("/mentorship", tags=["mentorship"], status_code=201)
+@router.post("/mentorship", response_model=schemas.MentorshipOut, tags=["mentorship"], status_code=201)
 @util.global_exception_handler
-def request_for_mentorship(mentorship : schemas.Mentorship):
+def request_for_mentorship(
+    mentorship : schemas.Mentorship,
+    user : models.User = Depends(core.authenticate_user)
+):
     """
     1. Notify respective tutor of request
     2. Store mentorship request for tracking
     """
-    pass
-
-def get_learner_profile(learner_id):
-    return {"phone_number": "xyz", "email": "xyz"}
-
-def send_sms(phone_number, message):
-    """
-    Use a bulk sms service like Africastalking
-    """
-    pass
-
-def send_email(phone_number, message):
-    """
-    User a mass mailing service like sendgrid
-    """ 
-    pass
-
-def get_tutor_profile(tutor_id):
-    return {"phone_number": "xyz", "email": "xyz"}
+    return core.request_for_mentorship(user.id, user.role, mentorship)

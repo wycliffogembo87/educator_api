@@ -63,6 +63,7 @@ class Submission(BaseModel):
 class MarkSubmission(BaseModel):
     submission_id : str
     mark : str # tick or cross
+    marks : int = None
 
 class Grade(BaseModel):
     id : UUID
@@ -78,16 +79,12 @@ class Grade(BaseModel):
 
 class Performance(BaseModel):
     id : UUID
-    tick_count : int
-    tick_total_marks : int
-    cross_count : int
-    cross_total_marks : int
-    auto_tick_count : int
-    auto_tick_total_marks : int
-    auto_cross_count : int
-    auto_cross_total_marks : int
-    total_number_of_questions : int
+    ticks : int
+    crosses : int
+    unmarked : int
+    marks_obtained : int
     total_marks : int
+    total_number_of_questions : int
     percentage : int
     grade : Grade
     exam : ExamOut
@@ -113,14 +110,24 @@ class SubmissionOut(BaseModel):
         orm_mode = True
 
 class Notification(BaseModel):
-    learner_id : str
-    channel : str = "sms" # Or email or any other
+    user_id : str
     message : str
 
 class Mentorship(BaseModel):
-    learner_id : str
-    tutor : str
+    tutor_id : str
     challenge_being_faced : str
+
+class MentorshipOut(BaseModel):
+    id : UUID
+    tutor : UUID
+    challenge_being_faced : str
+    is_active : bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
 
 class UploadedFile(BaseModel):
     file_name : str

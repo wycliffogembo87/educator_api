@@ -29,6 +29,22 @@ CREATE TABLE public.exam (
 
 
 --
+-- Name: grade; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.grade (
+    id uuid NOT NULL,
+    starting_percentage integer NOT NULL,
+    ending_percentage integer NOT NULL,
+    letter_grade text NOT NULL,
+    four_point_zero_grade double precision NOT NULL,
+    metadata jsonb NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
+);
+
+
+--
 -- Name: mentorship; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -53,6 +69,32 @@ CREATE TABLE public.notification (
     metadata jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
+    "user" uuid NOT NULL
+);
+
+
+--
+-- Name: performance; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.performance (
+    id uuid NOT NULL,
+    tick_count integer NOT NULL,
+    tick_total_marks integer NOT NULL,
+    cross_count integer NOT NULL,
+    cross_total_marks integer NOT NULL,
+    auto_tick_count integer NOT NULL,
+    auto_tick_total_marks integer NOT NULL,
+    auto_cross_count integer NOT NULL,
+    auto_cross_total_marks integer NOT NULL,
+    total_number_of_questions integer NOT NULL,
+    total_marks integer NOT NULL,
+    percentage integer NOT NULL,
+    metadata jsonb NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    grade uuid NOT NULL,
+    exam uuid NOT NULL,
     "user" uuid NOT NULL
 );
 
@@ -92,7 +134,7 @@ CREATE TABLE public.submission (
     id uuid NOT NULL,
     answer text NOT NULL,
     mark character varying(30) NOT NULL,
-    marks_obtained integer,
+    marks_obtained integer NOT NULL,
     comment text NOT NULL,
     metadata jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
@@ -132,6 +174,38 @@ ALTER TABLE ONLY public.exam
 
 
 --
+-- Name: grade grade_ending_percentage_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grade
+    ADD CONSTRAINT grade_ending_percentage_key UNIQUE (ending_percentage);
+
+
+--
+-- Name: grade grade_letter_grade_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grade
+    ADD CONSTRAINT grade_letter_grade_key UNIQUE (letter_grade);
+
+
+--
+-- Name: grade grade_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grade
+    ADD CONSTRAINT grade_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: grade grade_starting_percentage_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grade
+    ADD CONSTRAINT grade_starting_percentage_key UNIQUE (starting_percentage);
+
+
+--
 -- Name: mentorship mentorship_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -145,6 +219,14 @@ ALTER TABLE ONLY public.mentorship
 
 ALTER TABLE ONLY public.notification
     ADD CONSTRAINT notification_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: performance performance_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.performance
+    ADD CONSTRAINT performance_pkey PRIMARY KEY (id);
 
 
 --
@@ -169,6 +251,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 ALTER TABLE ONLY public.submission
     ADD CONSTRAINT submission_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: performance unq_performance__user_exam; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.performance
+    ADD CONSTRAINT unq_performance__user_exam UNIQUE ("user", exam);
 
 
 --
@@ -248,6 +338,13 @@ CREATE INDEX idx_exam__video_tutorial_name ON public.exam USING btree (video_tut
 
 
 --
+-- Name: idx_grade__created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_grade__created_at ON public.grade USING btree (created_at);
+
+
+--
 -- Name: idx_mentorship__created_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -280,6 +377,27 @@ CREATE INDEX idx_notification__created_at ON public.notification USING btree (cr
 --
 
 CREATE INDEX idx_notification__user ON public.notification USING btree ("user");
+
+
+--
+-- Name: idx_performance__created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_performance__created_at ON public.performance USING btree (created_at);
+
+
+--
+-- Name: idx_performance__exam; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_performance__exam ON public.performance USING btree (exam);
+
+
+--
+-- Name: idx_performance__grade; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_performance__grade ON public.performance USING btree (grade);
 
 
 --
@@ -331,6 +449,30 @@ ALTER TABLE ONLY public.exam
 
 ALTER TABLE ONLY public.notification
     ADD CONSTRAINT fk_notification__user FOREIGN KEY ("user") REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: performance fk_performance__exam; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.performance
+    ADD CONSTRAINT fk_performance__exam FOREIGN KEY (exam) REFERENCES public.exam(id) ON DELETE CASCADE;
+
+
+--
+-- Name: performance fk_performance__grade; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.performance
+    ADD CONSTRAINT fk_performance__grade FOREIGN KEY (grade) REFERENCES public.grade(id) ON DELETE CASCADE;
+
+
+--
+-- Name: performance fk_performance__user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.performance
+    ADD CONSTRAINT fk_performance__user FOREIGN KEY ("user") REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --

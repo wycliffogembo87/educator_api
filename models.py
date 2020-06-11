@@ -34,9 +34,11 @@ class Role(Enum):
     admin = 3
 
 class Mark(Enum):
-    correct = 0
-    wrong = 1
-    unmarked = 2
+    tick = 0
+    cross = 1
+    auto_tick = 2
+    auto_cross = 3
+    unmarked = 4
 
 class EnumConverter(StrConverter):
     def validate(self, val, obj=None):
@@ -93,6 +95,7 @@ class User(db.Entity):
     notifications = Set('Notification')
     exams = Set('Exam')
     submissions = Set('Submission')
+    performances = Set('Performance')
 
 
 class Exam(db.Entity):
@@ -104,6 +107,7 @@ class Exam(db.Entity):
     updated_at = Required(dt, default=lambda: dt.utcnow())
     user = Required(User)
     questions = Set('Question')
+    performances = Set('Performance')
 
 
 class Question(db.Entity):
@@ -124,7 +128,7 @@ class Submission(db.Entity):
     id = PrimaryKey(UUID, default=uuid4, auto=True)
     answer = Required(str)
     mark = Required(Mark, default=Mark.unmarked)
-    marks_obtained = Optional(int, default=-1)
+    marks_obtained = Required(int, default=0)
     comment = Optional(str)
     metadata = Required(Json, default={})
     created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
@@ -150,6 +154,40 @@ class Notification(db.Entity):
     created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
     updated_at = Required(dt, default=lambda: dt.utcnow())
     user = Required(User)
+
+
+class Grade(db.Entity):
+    id = PrimaryKey(UUID, default=uuid4, auto=True)
+    starting_percentage = Required(int, unique=True)
+    ending_percentage = Required(int, unique=True)
+    letter_grade = Required(str, unique=True)
+    four_point_zero_grade = Required(float)
+    metadata = Required(Json, default={})
+    created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
+    updated_at = Required(dt, default=lambda: dt.utcnow())
+    performances = Set('Performance')
+
+
+class Performance(db.Entity):
+    id = PrimaryKey(UUID, default=uuid4, auto=True)
+    tick_count = Required(int)
+    tick_total_marks = Required(int)
+    cross_count = Required(int)
+    cross_total_marks = Required(int)
+    auto_tick_count = Required(int)
+    auto_tick_total_marks = Required(int)
+    auto_cross_count = Required(int)
+    auto_cross_total_marks = Required(int)
+    total_number_of_questions = Required(int)
+    total_marks = Required(int)
+    percentage = Required(int)
+    metadata = Required(Json, default={})
+    created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
+    updated_at = Required(dt, default=lambda: dt.utcnow())
+    grade = Required(Grade)
+    exam = Required(Exam)
+    user = Required(User)
+    composite_key(user, exam)
 
 
 db.generate_mapping(create_tables=True)

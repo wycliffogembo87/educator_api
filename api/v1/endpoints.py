@@ -134,6 +134,19 @@ def create_submission(
     """
     return core.create_submission(user, submission)
 
+@router.post("/exam/submission/mark", response_model=schemas.SubmissionOut, tags=["exam"], status_code=201)
+@util.global_exception_handler
+def mark_submission(
+    submission: schemas.MarkSubmission,
+    user : models.User = Depends(core.authenticate_user)
+):
+    """
+    1. Fetch exam from database
+    2. Compare submitted answers to tutors answers
+       and use that to grade the learner.
+    """
+    return core.mark_submission(user, submission)
+
 @router.post("/notification", tags=["notification"], status_code=201)
 @util.global_exception_handler
 def notify_users(notification : schemas.Notification):

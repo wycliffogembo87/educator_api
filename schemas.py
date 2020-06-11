@@ -21,7 +21,6 @@ class User(BaseModel):
 
 class Question(BaseModel):
     exam_id : str
-    number : int = None
     text : str
     multi_choice : List[str] = None # If None then free_text
     marks : int
@@ -53,10 +52,6 @@ class QuestionOut(BaseModel):
     class Config:
         orm_mode = True
 
-class Questions(BaseModel):
-    exam_id : str
-    questions : List[Question]
-
 class Exam(BaseModel):
     name : str
     video_tutorial_name : str = None
@@ -65,11 +60,49 @@ class Submission(BaseModel):
     question_id : str
     answer : str
 
+class MarkSubmission(BaseModel):
+    submission_id : str
+    mark : str # tick or cross
+
+class Grade(BaseModel):
+    id : UUID
+    starting_percentage : int
+    ending_percentage : int
+    letter_grade : str
+    four_point_zero_grade : float
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+class Performance(BaseModel):
+    id : UUID
+    tick_count : int
+    tick_total_marks : int
+    cross_count : int
+    cross_total_marks : int
+    auto_tick_count : int
+    auto_tick_total_marks : int
+    auto_cross_count : int
+    auto_cross_total_marks : int
+    total_number_of_questions : int
+    total_marks : int
+    percentage : int
+    grade : Grade
+    exam : ExamOut
+    user : User
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+    
 class SubmissionOut(BaseModel):
     id : UUID
     answer : str
     mark : Mark
-    marks_obtained : int = None
+    marks_obtained : int
     comment : str = None
     question : QuestionOut
     user : User
@@ -78,10 +111,6 @@ class SubmissionOut(BaseModel):
 
     class Config:
         orm_mode = True
-
-class Submissions(BaseModel):
-    exam_id : str
-    answers : List[Submission]
 
 class Notification(BaseModel):
     learner_id : str

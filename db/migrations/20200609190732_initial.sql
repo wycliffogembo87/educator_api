@@ -1,5 +1,18 @@
 -- migrate:up
 
+CREATE TABLE "grade" (
+  "id" UUID PRIMARY KEY,
+  "starting_percentage" INTEGER UNIQUE NOT NULL,
+  "ending_percentage" INTEGER UNIQUE NOT NULL,
+  "letter_grade" TEXT UNIQUE NOT NULL,
+  "four_point_zero_grade" DOUBLE PRECISION NOT NULL,
+  "metadata" JSONB NOT NULL,
+  "created_at" TIMESTAMP NOT NULL,
+  "updated_at" TIMESTAMP NOT NULL
+);
+
+CREATE INDEX "idx_grade__created_at" ON "grade" ("created_at");
+
 CREATE TABLE "mentorship" (
   "id" UUID PRIMARY KEY,
   "learner" TEXT NOT NULL,
@@ -69,6 +82,40 @@ CREATE INDEX "idx_notification__user" ON "notification" ("user");
 
 ALTER TABLE "notification" ADD CONSTRAINT "fk_notification__user" FOREIGN KEY ("user") REFERENCES "user" ("id") ON DELETE CASCADE;
 
+CREATE TABLE "performance" (
+  "id" UUID PRIMARY KEY,
+  "tick_count" INTEGER NOT NULL,
+  "tick_total_marks" INTEGER NOT NULL,
+  "cross_count" INTEGER NOT NULL,
+  "cross_total_marks" INTEGER NOT NULL,
+  "auto_tick_count" INTEGER NOT NULL,
+  "auto_tick_total_marks" INTEGER NOT NULL,
+  "auto_cross_count" INTEGER NOT NULL,
+  "auto_cross_total_marks" INTEGER NOT NULL,
+  "total_number_of_questions" INTEGER NOT NULL,
+  "total_marks" INTEGER NOT NULL,
+  "percentage" INTEGER NOT NULL,
+  "metadata" JSONB NOT NULL,
+  "created_at" TIMESTAMP NOT NULL,
+  "updated_at" TIMESTAMP NOT NULL,
+  "grade" UUID NOT NULL,
+  "exam" UUID NOT NULL,
+  "user" UUID NOT NULL,
+  CONSTRAINT "unq_performance__user_exam" UNIQUE ("user", "exam")
+);
+
+CREATE INDEX "idx_performance__created_at" ON "performance" ("created_at");
+
+CREATE INDEX "idx_performance__exam" ON "performance" ("exam");
+
+CREATE INDEX "idx_performance__grade" ON "performance" ("grade");
+
+ALTER TABLE "performance" ADD CONSTRAINT "fk_performance__exam" FOREIGN KEY ("exam") REFERENCES "exam" ("id") ON DELETE CASCADE;
+
+ALTER TABLE "performance" ADD CONSTRAINT "fk_performance__grade" FOREIGN KEY ("grade") REFERENCES "grade" ("id") ON DELETE CASCADE;
+
+ALTER TABLE "performance" ADD CONSTRAINT "fk_performance__user" FOREIGN KEY ("user") REFERENCES "user" ("id") ON DELETE CASCADE;
+
 CREATE TABLE "question" (
   "id" UUID PRIMARY KEY,
   "number" INTEGER,
@@ -93,7 +140,7 @@ CREATE TABLE "submission" (
   "id" UUID PRIMARY KEY,
   "answer" TEXT NOT NULL,
   "mark" VARCHAR(30) NOT NULL,
-  "marks_obtained" INTEGER,
+  "marks_obtained" INTEGER NOT NULL,
   "comment" TEXT NOT NULL,
   "metadata" JSONB NOT NULL,
   "created_at" TIMESTAMP NOT NULL,
@@ -113,6 +160,8 @@ ALTER TABLE "submission" ADD CONSTRAINT "fk_submission__user" FOREIGN KEY ("user
 
 -- migrate:down
 
+DROP TABLE "performance";
+DROP TABLE "grade";
 DROP TABLE "submission";
 DROP TABLE "question";
 DROP TABLE "exam";

@@ -1,0 +1,23 @@
+# DEBUG
+DEBUG=False
+
+# ENV
+ENVIRONMENT=staging
+
+# To get a string like this run: openssl rand -hex 32
+SECRET_KEY=secret_key
+
+# PRODUCTION DATABASE
+DB_USER=user
+DB_PASS=pass
+DB_HOST=localhost
+DB_NAME=educator_api
+DB_PORT=5432
+
+DATABASE_URL=postgres://user:pass@localhost:5432/educator_api?sslmode=disable
+
+# AFRICASTALKING API
+AFRICASTALKING_API_KEY=api_key
+AFRICASTALKING_API_SENDER_ID=sender_id_if_available
+AFRICASTALKING_API_URL=https://api.africastalking.com/version1/messaging
+AFRICASTALKING_API_USERNAME=api_username

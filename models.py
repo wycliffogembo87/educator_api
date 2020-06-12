@@ -98,19 +98,31 @@ class User(db.Entity):
     performances = Set('Performance')
     notifications = Set('Notification')
     mentorships = Set('Mentorship')
+    participants = Set('Participant')
 
 
 class Exam(db.Entity):
     id = PrimaryKey(UUID, default=uuid4, auto=True)
-    name = Required(str, index=True)
+    name = Required(str, unique=True)
     video_tutorial_name = Optional(str, index=True)
+    time_duration = Required(int, default=90)
+    is_active = Required(bool, default=True)
     metadata = Required(Json, default={})
     created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
     updated_at = Required(dt, default=lambda: dt.utcnow())
     user = Required(User)
     questions = Set('Question')
     performances = Set('Performance')
+    participants = Set('Participant')
 
+class Participant(db.Entity):
+    id = PrimaryKey(UUID, default=uuid4, auto=True)
+    metadata = Required(Json, default={})
+    created_at = Required(dt, default=lambda: dt.utcnow(), index=True)
+    updated_at = Required(dt, default=lambda: dt.utcnow())
+    exam = Required(Exam)
+    user = Required(User)
+    composite_key(user, exam)
 
 class Question(db.Entity):
     id = PrimaryKey(UUID, default=uuid4, auto=True)

@@ -55,6 +55,15 @@ class Exam(BaseModel):
     name : str
     video_tutorial_name : str = None
 
+class StartExam(BaseModel):
+    exam_id : str
+    duration : int = None
+    alert_after : List[int] = None
+
+class Participant(BaseModel):
+    exam_id : str
+    user_id : str
+
 class Submission(BaseModel):
     question_id : str
     answer : str

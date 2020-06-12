@@ -20,6 +20,7 @@ from uuid import UUID
 
 from models import User
 from models import Exam
+from models import Participant
 from models import Question
 from models import Submission
 from models import Grade
@@ -42,6 +43,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 roles = dict(
     upload_file=[Role.tutor],
     create_exam=[Role.tutor],
+    add_participant=[Role.tutor],
     create_question=[Role.tutor],
     create_submission=[Role.learner],
     mark_submission=[Role.tutor],
@@ -134,8 +136,36 @@ def create_exam(user_id: UUID, user_role: Role, exam: schemas.Exam):
 
 
 @db_session
-def create_question(user_id: UUID, user_role: Role, question_in: schemas.Question):
+def add_participant(user_id: UUID, user_role: Role, participant: schemas.Participant):
+    is_authorized(user_role, "add_participant")
 
+    exam_id = participant.exam_id
+    learner_id = participant.user_id
+
+    exam = Exam.get(id=exam_id, user=User[user_id])
+    if not exam:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found : id: {}".format(exam_id)
+        )
+
+    learner = User.get(id=learner_id, role=Role.learner)
+    if not learner:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Learner not found : id: {}".format(learner_id)
+        )
+
+    participant = Participant(
+        exam=exam,
+        user=learner
+    )
+
+    return participant.to_dict()
+
+
+@db_session
+def create_question(user_id: UUID, user_role: Role, question_in: schemas.Question):
     is_authorized(user_role, "create_question")
 
     exam = Exam.get(id=question_in.exam_id)
@@ -176,6 +206,17 @@ def create_submission(user_id: UUID, user_role: Role, submission: schemas.Submis
             detail=(
                 "Question not found : question_id: {}".format(
                     submission.question_id
+                )
+            )
+        )
+    
+    participant = Participant.get(exam=question.exam, user=User[user_id])
+    if not participant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "Participant not found : exam_id: {}".format(
+                    question.exam.id
                 )
             )
         )

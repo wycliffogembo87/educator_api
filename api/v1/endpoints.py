@@ -148,6 +148,38 @@ def create_exam(
     return core.create_exam(user.id, user.role, exam)
 
 
+@router.post("/exam/participant", tags=["exam"], status_code=201)
+@util.global_exception_handler
+def add_participant(
+    participant: schemas.Participant,
+    user : models.User = Depends(core.authenticate_user)
+):
+    """
+    Description:
+        
+        This endpoint enables tutors to add participants for a particular exams.
+
+    Please note the following:
+
+        - Only tutors allowed to add participants.
+
+    Params:
+
+        exam_id
+            - String
+            - Mandatory
+            - E.g e3ff1d3c-f018-475f-a3cb-c1c3f4bc0258
+            - Its returned when one creates an exam
+
+        user_id
+            - String
+            - Mandatory
+            - E.g e3ff1d3c-f018-475f-a3cb-c1c3f4bc0258
+            - This is the id of the learner who is qualified to sit for this exam
+    """
+    return core.add_participant(user.id, user.role, participant)
+
+
 # response_model=schemas.QuestionOut throws DatabaseSessionOver exception
 @router.post("/exam/question", tags=["exam"], status_code=201)
 @util.global_exception_handler

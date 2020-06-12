@@ -33,8 +33,10 @@ CREATE INDEX "idx_user__created_at" ON "user" ("created_at");
 
 CREATE TABLE "exam" (
   "id" UUID PRIMARY KEY,
-  "name" TEXT NOT NULL,
+  "name" TEXT UNIQUE NOT NULL,
   "video_tutorial_name" TEXT NOT NULL,
+  "time_duration" INTEGER NOT NULL,
+  "is_active" BOOLEAN NOT NULL,
   "metadata" JSONB NOT NULL,
   "created_at" TIMESTAMP NOT NULL,
   "updated_at" TIMESTAMP NOT NULL,
@@ -42,8 +44,6 @@ CREATE TABLE "exam" (
 );
 
 CREATE INDEX "idx_exam__created_at" ON "exam" ("created_at");
-
-CREATE INDEX "idx_exam__name" ON "exam" ("name");
 
 CREATE INDEX "idx_exam__user" ON "exam" ("user");
 
@@ -83,6 +83,24 @@ CREATE INDEX "idx_notification__created_at" ON "notification" ("created_at");
 CREATE INDEX "idx_notification__user" ON "notification" ("user");
 
 ALTER TABLE "notification" ADD CONSTRAINT "fk_notification__user" FOREIGN KEY ("user") REFERENCES "user" ("id") ON DELETE CASCADE;
+
+CREATE TABLE "participant" (
+  "id" UUID PRIMARY KEY,
+  "metadata" JSONB NOT NULL,
+  "created_at" TIMESTAMP NOT NULL,
+  "updated_at" TIMESTAMP NOT NULL,
+  "exam" UUID NOT NULL,
+  "user" UUID NOT NULL,
+  CONSTRAINT "unq_participant__user_exam" UNIQUE ("user", "exam")
+);
+
+CREATE INDEX "idx_participant__created_at" ON "participant" ("created_at");
+
+CREATE INDEX "idx_participant__exam" ON "participant" ("exam");
+
+ALTER TABLE "participant" ADD CONSTRAINT "fk_participant__exam" FOREIGN KEY ("exam") REFERENCES "exam" ("id") ON DELETE CASCADE;
+
+ALTER TABLE "participant" ADD CONSTRAINT "fk_participant__user" FOREIGN KEY ("user") REFERENCES "user" ("id") ON DELETE CASCADE;
 
 CREATE TABLE "performance" (
   "id" UUID PRIMARY KEY,
@@ -158,6 +176,7 @@ ALTER TABLE "submission" ADD CONSTRAINT "fk_submission__user" FOREIGN KEY ("user
 
 -- migrate:down
 
+DROP TABLE "participant";
 DROP TABLE "performance";
 DROP TABLE "grade";
 DROP TABLE "submission";

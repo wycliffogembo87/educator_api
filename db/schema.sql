@@ -21,6 +21,8 @@ CREATE TABLE public.exam (
     id uuid NOT NULL,
     name text NOT NULL,
     video_tutorial_name text NOT NULL,
+    time_duration integer NOT NULL,
+    is_active boolean NOT NULL,
     metadata jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
@@ -69,6 +71,20 @@ CREATE TABLE public.notification (
     metadata jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
+    "user" uuid NOT NULL
+);
+
+
+--
+-- Name: participant; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.participant (
+    id uuid NOT NULL,
+    metadata jsonb NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    exam uuid NOT NULL,
     "user" uuid NOT NULL
 );
 
@@ -162,6 +178,14 @@ CREATE TABLE public."user" (
 
 
 --
+-- Name: exam exam_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.exam
+    ADD CONSTRAINT exam_name_key UNIQUE (name);
+
+
+--
 -- Name: exam exam_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -218,6 +242,14 @@ ALTER TABLE ONLY public.notification
 
 
 --
+-- Name: participant participant_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.participant
+    ADD CONSTRAINT participant_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: performance performance_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -247,6 +279,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 ALTER TABLE ONLY public.submission
     ADD CONSTRAINT submission_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: participant unq_participant__user_exam; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.participant
+    ADD CONSTRAINT unq_participant__user_exam UNIQUE ("user", exam);
 
 
 --
@@ -313,13 +353,6 @@ CREATE INDEX idx_exam__created_at ON public.exam USING btree (created_at);
 
 
 --
--- Name: idx_exam__name; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_exam__name ON public.exam USING btree (name);
-
-
---
 -- Name: idx_exam__user; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -373,6 +406,20 @@ CREATE INDEX idx_notification__created_at ON public.notification USING btree (cr
 --
 
 CREATE INDEX idx_notification__user ON public.notification USING btree ("user");
+
+
+--
+-- Name: idx_participant__created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_participant__created_at ON public.participant USING btree (created_at);
+
+
+--
+-- Name: idx_participant__exam; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_participant__exam ON public.participant USING btree (exam);
 
 
 --
@@ -453,6 +500,22 @@ ALTER TABLE ONLY public.mentorship
 
 ALTER TABLE ONLY public.notification
     ADD CONSTRAINT fk_notification__user FOREIGN KEY ("user") REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: participant fk_participant__exam; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.participant
+    ADD CONSTRAINT fk_participant__exam FOREIGN KEY (exam) REFERENCES public.exam(id) ON DELETE CASCADE;
+
+
+--
+-- Name: participant fk_participant__user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.participant
+    ADD CONSTRAINT fk_participant__user FOREIGN KEY ("user") REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --

@@ -10,7 +10,6 @@ from fastapi.security import HTTPBasic
 from fastapi.security import HTTPBasicCredentials
 
 from loguru import logger
-from passlib.context import CryptContext
 from typing import List
 from pathlib import Path
 
@@ -34,39 +33,18 @@ from models import Mark
 import models
 import schemas
 import settings
+import util
 
 
 security = HTTPBasic()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-roles = dict(
-    upload_file=[Role.tutor],
-    create_exam=[Role.tutor],
-    add_participant=[Role.tutor],
-    create_question=[Role.tutor],
-    create_submission=[Role.learner],
-    mark_submission=[Role.tutor],
-    get_exam_performance=[Role.tutor],
-    notify_user=[Role.tutor, Role.staff, Role.admin],
-    request_form_mentorship=[Role.learner]
-)
-
-
-def verify_password(plain_password: str, hashed_password: str):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str):
-    return pwd_context.hash(password)
 
 
 def is_authorized(user_role: Role, action: str):
     logger.debug("Action : {}, Role : {}".format(action, user_role))
-    if user_role not in roles[action]:
+    if user_role not in settings.roles[action]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only {} can {}".format(roles[action], action)
+            detail="Only {} can {}".format(settings.roles[action], action)
         )
     return True
 
@@ -76,7 +54,7 @@ def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
     user = get_user(credentials.username)
     if user and \
         user.status == Status.active and \
-            verify_password(credentials.password, user.password):
+            util.verify_password(credentials.password, user.password):
         return user
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,19 +84,6 @@ def upload_video(user_role: Role, uploaded_file: UploadFile, videos_dir: str):
         "file_name": uploaded_file.filename,
         "content_type": uploaded_file.content_type
     }
-
-
-@db_session
-def create_user(username: str, password: str, phone_number: str, email: str, role: Role):
-    user = User(
-        username=username,
-        password=get_password_hash(password),
-        phone_number=phone_number,
-        email=email,
-        role=role,
-        status=Status.active
-    )
-    return user
 
 
 @db_session
@@ -459,40 +424,3 @@ def request_for_mentorship(user_id: str, user_role: Role, mentorship: schemas.Me
     )
 
     return mentorship.to_dict()
-
-
-@db_session
-def populate_grades():
-    grades = [
-        dict(starting_percentage=0, ending_percentage=65, letter_grade="E/F", four_point_zero_grade=0.0),
-        dict(starting_percentage=65, ending_percentage=66, letter_grade="D", four_point_zero_grade=1.0),
-        dict(starting_percentage=67, ending_percentage=69, letter_grade="D+", four_point_zero_grade=1.3),
-        dict(starting_percentage=70, ending_percentage=72, letter_grade="C-", four_point_zero_grade=1.7),
-        dict(starting_percentage=73, ending_percentage=76, letter_grade="C", four_point_zero_grade=2.0),
-        dict(starting_percentage=77, ending_percentage=79, letter_grade="C+", four_point_zero_grade=2.3),
-        dict(starting_percentage=80, ending_percentage=82, letter_grade="B-", four_point_zero_grade=2.7),
-        dict(starting_percentage=83, ending_percentage=86, letter_grade="B", four_point_zero_grade=3.0),
-        dict(starting_percentage=87, ending_percentage=89, letter_grade="B+", four_point_zero_grade=3.3),
-        dict(starting_percentage=90, ending_percentage=92, letter_grade="A-", four_point_zero_grade=3.7),
-        dict(starting_percentage=93, ending_percentage=96, letter_grade="A", four_point_zero_grade=4.0),
-        dict(starting_percentage=97, ending_percentage=100, letter_grade="A+", four_point_zero_grade=4.0)
-    ]
-    for grade in grades:
-        g = Grade(**grade)
-        logger.debug(g.to_dict())
-
-@db_session
-def populate_users():
-    users = [
-        dict(username='tutor', password=get_password_hash('tutor123'), phone_number="+254728043275", email="wycliff@brck.com", role=Role.tutor),
-        dict(username='learner', password=get_password_hash('learner123'), phone_number="+254735688154", email="wycliffogembo87@gmail.com", role=Role.learner),
-        dict(username='staff', password=get_password_hash('staff123'), phone_number="+254728043276", email="wycliffogembo88@gmail.com", role=Role.tutor),
-        dict(username='admin', password=get_password_hash('admin123'), phone_number="+254728043277", email="wycliffogembo89@gmail.com", role=Role.tutor)
-    ]
-    for user in users:
-        u = User(**user)
-        logger.debug(u.to_dict())
-
-if __name__ == '__main__':
-    populate_users()
-    populate_grades()

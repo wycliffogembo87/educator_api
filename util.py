@@ -1,6 +1,7 @@
 import os
 import errno
 import traceback
+from enum import Enum
 
 from fastapi import status
 from fastapi import HTTPException
@@ -8,7 +9,57 @@ from fastapi import HTTPException
 from loguru import logger
 from functools import wraps
 
+from passlib.context import CryptContext
+
 from pony.orm.core import TransactionIntegrityError
+from pony.orm.dbapiprovider import StrConverter
+
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class Status(Enum):
+    active = 0
+    inactive = 1
+    suspended = 2
+
+class Role(Enum):
+    tutor = 0
+    learner = 1
+    staff = 2
+    admin = 3
+
+class Mark(Enum):
+    tick = 0
+    cross = 1
+    auto_tick = 2
+    auto_cross = 3
+    unmarked = 4
+
+
+class EnumConverter(StrConverter):
+    def validate(self, val, obj=None):
+        if not isinstance(val, Enum):
+            raise ValueError('Must be an Enum. Got {}'.format(val))
+        return val
+
+    def py2sql(self, val):
+        return val.name
+
+    def sql2py(self, val):
+        # Any enum type can be used, so py_type ensures the
+        # correct one is used to create the enum instance
+        return self.py_type[val]
+
+    def sql_type(self):
+        return 'VARCHAR(30)'
+
+
+def get_password_hash(password: str):
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str):
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def mkdir_p(path):

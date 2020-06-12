@@ -1,7 +1,7 @@
 import os
 import random
-from datetime import datetime as dt
 from enum import Enum
+from datetime import datetime as dt
 from loguru import logger
 
 from uuid import UUID
@@ -17,45 +17,15 @@ from pony.orm import Set
 from pony.orm import StrArray
 from pony.orm import composite_key
 from pony.orm import set_sql_debug
-from pony.orm.dbapiprovider import StrConverter
+
+
+from util import Status
+from util import Role
+from util import Mark
+from util import EnumConverter
+
 
 import settings
-
-
-class Status(Enum):
-    active = 0
-    inactive = 1
-    suspended = 2
-
-class Role(Enum):
-    tutor = 0
-    learner = 1
-    staff = 2
-    admin = 3
-
-class Mark(Enum):
-    tick = 0
-    cross = 1
-    auto_tick = 2
-    auto_cross = 3
-    unmarked = 4
-
-class EnumConverter(StrConverter):
-    def validate(self, val, obj=None):
-        if not isinstance(val, Enum):
-            raise ValueError('Must be an Enum. Got {}'.format(val))
-        return val
-
-    def py2sql(self, val):
-        return val.name
-
-    def sql2py(self, val):
-        # Any enum type can be used, so py_type ensures the
-        # correct one is used to create the enum instance
-        return self.py_type[val]
-
-    def sql_type(self):
-        return 'VARCHAR(30)'
 
 
 db = Database()

@@ -44,8 +44,7 @@ class QuestionOut(BaseModel):
     multi_choice : List[str] = None # If None then free_text
     marks : int
     answer : str = None
-    # exam_id : UUID
-    # exam : ExamOut
+    exam : ExamOut
     created_at: datetime
     updated_at: datetime
 

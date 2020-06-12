@@ -27,7 +27,7 @@ def mkdir_p(path):
 def logger_setup():
     mkdir_p('{}/logs'.format(os.getcwd()))
 
-    logs_name = "logs/sm.log.{time}"
+    logs_name = "logs/educator_api.log"
 
     logger.add(
         logs_name,
@@ -45,9 +45,9 @@ def decorator(func):
     @wraps(func)
     def function_wrapper(*args, **kwargs):
         """ function_wrapper of greeting """
-        print("Before, " + func.__name__ + " returns:")
+        logger.debug("Before, " + func.__name__ + " returns:")
         response = func(*args, **kwargs)
-        print("After, " + func.__name__ + " returns:")
+        logger.debug("After, " + func.__name__ + " returns:")
         return response
     return function_wrapper
 
@@ -57,19 +57,25 @@ def global_exception_handler(func):
     def function_wrapper(*args, **kwargs):
         try:
             response = func(*args, **kwargs)
-        except HTTPException:
+        except HTTPException as err:
+            logger.error(err)
+            logger.debug(traceback.format_exc())
             raise
-        except TransactionIntegrityError:
+        except TransactionIntegrityError as err:
+            logger.error(err)
+            logger.debug(traceback.format_exc())
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=("This record cannot be submitted more than once")
             )
         except Exception as err:
-            print(traceback.format_exc())
+            logger.error(err)
+            logger.debug(traceback.format_exc())
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(err)
             )
+        logger.info(response)
         
         return response
     return function_wrapper

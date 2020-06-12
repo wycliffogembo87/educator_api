@@ -1,14 +1,18 @@
 import requests
+import shutil
 
 from fastapi import Depends
 from fastapi import status
 from fastapi import HTTPException
+from fastapi import UploadFile
 
 from fastapi.security import HTTPBasic
 from fastapi.security import HTTPBasicCredentials
 
+from loguru import logger
 from passlib.context import CryptContext
 from typing import List
+from pathlib import Path
 
 from pony.orm import *
 
@@ -30,33 +34,40 @@ import models
 import schemas
 import settings
 
+
 security = HTTPBasic()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 roles = dict(
+    upload_file=[Role.tutor],
     create_exam=[Role.tutor],
     create_question=[Role.tutor],
     create_submission=[Role.learner],
     mark_submission=[Role.tutor],
-    notify_user=[Role.tutor],
+    get_exam_performance=[Role.tutor],
+    notify_user=[Role.tutor, Role.staff, Role.admin],
     request_form_mentorship=[Role.learner]
 )
+
 
 def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password: str):
     return pwd_context.hash(password)
 
+
 def is_authorized(user_role: Role, action: str):
-    print("Action : {}, Role : {}".format(action, user_role))
-    print(dir(Role))
+    logger.debug("Action : {}, Role : {}".format(action, user_role))
     if user_role not in roles[action]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only {} can {}".format(roles[action], action)
         )
     return True
+
 
 @db_session
 def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
@@ -71,9 +82,29 @@ def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
         headers={"WWW-Authenticate": "Basic"},
     )
 
+
 @db_session
 def get_user(username: str):
     return User.get(username=username, status=Status.active)
+
+
+def upload_video(user_role: Role, uploaded_file: UploadFile, videos_dir: str):
+    is_authorized(user_role, "upload_file")
+
+    def save_upload_file(upload_file: UploadFile, destination: Path) -> None:
+        try:
+            with open(destination, "wb") as buffer:
+                shutil.copyfileobj(upload_file.file, buffer)
+        finally:
+            upload_file.file.close()
+    
+    save_upload_file(uploaded_file, videos_dir + uploaded_file.filename)
+
+    return {
+        "file_name": uploaded_file.filename,
+        "content_type": uploaded_file.content_type
+    }
+
 
 @db_session
 def create_user(username: str, password: str, phone_number: str, email: str, role: Role):
@@ -83,52 +114,97 @@ def create_user(username: str, password: str, phone_number: str, email: str, rol
         phone_number=phone_number,
         email=email,
         role=role,
-        # status=Status.active
+        status=Status.active
     )
     return user
 
+
 @db_session
-def create_exam(user: models.User, exam: schemas.Exam):
-    
-    is_authorized(user, "create_exam")
+def create_exam(user_id: UUID, user_role: Role, exam: schemas.Exam):
+    is_authorized(user_role, "create_exam")
 
     exam_data = dict(
         name=exam.name,
-        user=User[user.id]
+        user=User[user_id]
     )
     if exam.video_tutorial_name:
         exam_data["video_tutorial_name"] = exam.video_tutorial_name
 
     return Exam(**exam_data)
 
+
 @db_session
-def create_question(user: models.User, question: schemas.Question):
+def create_question(user_id: UUID, user_role: Role, question_in: schemas.Question):
 
-    is_authorized(user, "create_question")
+    is_authorized(user_role, "create_question")
 
-    exam = Exam.get(id=question.exam_id)
+    exam = Exam.get(id=question_in.exam_id)
     if not exam:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Exam not found : id: {}".format(question.exam_id)
+            detail="Exam not found : id: {}".format(question_in.exam_id)
         )
 
-    question_data = dict(
-        text=question.text,
-        marks=question.marks,
+    question = dict(
+        text=question_in.text,
+        marks=question_in.marks,
         exam=exam
     )
 
-    if question.multi_choice:
-        question_data["multi_choice"] = question.multi_choice
+    if question_in.multi_choice:
+        question["multi_choice"] = question_in.multi_choice
     
-    if question.answer:
-        question_data["answer"] = question.answer
+    if question_in.answer:
+        question["answer"] = question_in.answer
     
-    counter = count(q for q in Question if q.exam == exam)
-    question_data["number"] = counter + 1
+    counter = select(max(q.number) for q in Question if q.exam == exam)[:][0]
+    if not counter:
+        counter = 0
+    question["number"] = counter + 1
 
-    return Question(**question_data)
+    return Question(**question).to_dict()
+
+
+@db_session
+def create_submission(user_id: UUID, user_role: Role, submission: schemas.Submission):
+    is_authorized(user_role, "create_submission")
+    
+    question = Question.get(id=submission.question_id)
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "Question not found : question_id: {}".format(
+                    submission.question_id
+                )
+            )
+        )
+
+    if len(question.multi_choice) > 0:
+        if submission.answer == question.answer:
+            marks_obtained = question.marks
+            mark = Mark.auto_tick
+        else:
+            marks_obtained = 0
+            mark = Mark.auto_cross
+
+        submission = Submission(
+            answer=submission.answer,
+            question=question,
+            user=User[user_id],
+            marks_obtained=marks_obtained,
+            mark=mark
+        )
+    else:
+        submission = Submission(
+            answer=submission.answer,
+            question=question,
+            user=User[user_id]
+        )
+
+    performance_review(submission)
+
+    return submission.to_dict()
 
 
 @db_session
@@ -151,7 +227,7 @@ def mark_submission(user_id: UUID, user_role: Role, submission: schemas.Submissi
             )
         )
     
-    if True: #submission.mark == Mark.unmarked:
+    if submission.mark == Mark.unmarked:
         submission.mark = mark
         if marks_to_award:
             submission.marks_obtained = marks_to_award
@@ -163,10 +239,10 @@ def mark_submission(user_id: UUID, user_role: Role, submission: schemas.Submissi
 
         performance_review(submission)
 
-        return submission
+        return submission.to_dict()
     
     raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+        status_code=status.HTTP_403_FORBIDDEN,
             detail=(
                 "Submission already auto marked : submission_id: {}".format(
                     submission_id
@@ -174,58 +250,20 @@ def mark_submission(user_id: UUID, user_role: Role, submission: schemas.Submissi
             )
         )
 
-@db_session
-def create_submission(user: models.User, submission: schemas.Submission):
-    is_authorized(user, "create_submission")
-    
-    question = Question.get(id=submission.question_id)
-    if not question:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                "Question not found : question_id: {}".format(
-                    submission.question_id
-                )
-            )
-        )
-    
-    learner = User[user.id]
-
-    submission = Submission(
-        answer=submission.answer,
-        question=question,
-        user=learner,
-        marks_obtained=(
-            question.marks
-            if len(question.multi_choice) > 0 and submission.answer == question.answer
-            else
-            0
-        ),
-        mark=(
-            Mark.auto_tick
-            if len(question.multi_choice) > 0 and submission.answer == question.answer
-            else
-            Mark.auto_cross
-        )
-    )
-
-    performance = performance_review(submission)
-
-    print(performance.to_dict())
-    print(submission.to_dict())
-
-    return submission
 
 def performance_review(submission : models.Submission):
     exam = submission.question.exam
 
-    exam_stats = select(
-        (sum(q.marks), count())
+    exam_questions = select(
+        q
         for q in Question
         if q.exam == exam
-    )[:][0]
-    print(exam_stats)
-    total_marks, total_number_of_questions = exam_stats
+    )[:]
+
+    total_marks, total_number_of_questions = 0, 0
+    for exam_question in exam_questions:
+        total_marks += exam_question.marks
+        total_number_of_questions += 1
 
     learner_submissions = select(
         s
@@ -233,7 +271,6 @@ def performance_review(submission : models.Submission):
         if s.question.exam == exam
         and s.user == submission.user
     )[:]
-    print(learner_submissions)
 
     ticks = 0
     crosses = 0
@@ -257,7 +294,6 @@ def performance_review(submission : models.Submission):
         percentage >= g.starting_percentage
         and percentage <= g.ending_percentage
     )
-    print(grade)
 
     performance = Performance.get(user=submission.user, exam=exam)
 
@@ -284,7 +320,32 @@ def performance_review(submission : models.Submission):
         performance.percentage = percentage
         performance.grade = grade
     
+    logger.debug(performance.to_dict())
+    
     return performance
+
+
+@db_session
+def get_exam_performance(user_role: Role, exam_id: str):
+    is_authorized(user_role, "get_exam_performance")
+
+    exam = Exam.get(id=exam_id)
+    if not exam:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found : id: {}".format(exam_id)
+        )
+    
+    results = select(p for p in Performance if p.exam == exam )[:]
+
+    performance = []
+    for result in results:
+        performance.append(result.to_dict())
+    
+    return performance
+
+
+
 
 @db_session
 def notify_user(user_role: Role, user_id: str, message: str):
@@ -301,6 +362,7 @@ def notify_user(user_role: Role, user_id: str, message: str):
             )
         )
     return send_sms(user, [user.phone_number], message)
+
 
 def send_sms(user: models.User, recipients: List[str], message: str):
 
@@ -329,7 +391,7 @@ def send_sms(user: models.User, recipients: List[str], message: str):
     try:
         response = response.json()
     except Exception as error:
-        print(error)
+        logger.debug(error)
         raise HTTPException(
             status_code=response.status_code,
             detail=response.text
@@ -337,9 +399,10 @@ def send_sms(user: models.User, recipients: List[str], message: str):
     else:
         sms_message_data = response['SMSMessageData']
         notification = Notification(user=user, metadata=sms_message_data)
-        print(notification)
+        logger.debug(notification)
     
     return response
+
 
 @db_session
 def request_for_mentorship(user_id: str, user_role: Role, mentorship: schemas.Mentorship):
@@ -354,7 +417,8 @@ def request_for_mentorship(user_id: str, user_role: Role, mentorship: schemas.Me
         challenge_being_faced=challenge_being_faced
     )
 
-    return mentorship
+    return mentorship.to_dict()
+
 
 @db_session
 def populate_grades():
@@ -374,7 +438,7 @@ def populate_grades():
     ]
     for grade in grades:
         g = Grade(**grade)
-        print(g.to_dict())
+        logger.debug(g.to_dict())
 
 @db_session
 def populate_users():
@@ -386,7 +450,7 @@ def populate_users():
     ]
     for user in users:
         u = User(**user)
-        print(u.to_dict())
+        logger.debug(u.to_dict())
 
 if __name__ == '__main__':
     populate_users()

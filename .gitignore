@@ -110,3 +110,5 @@ venv.bak/
 temp.py
 test.db
 .garden
+videos
+logs
